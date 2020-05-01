@@ -1,0 +1,26 @@
+# List of parameters suggested in the GitHub issues
+
+Train triplet_loss with those parameters:
+--keep_probability 0.6 \
+--weight_decay 5e-4 \
+--people_per_batch 720 \
+--images_per_person 5 \
+--batch_size 210 \
+--learning_rate 0.002 \
+--learning_rate_decay_factor 0.98 \
+--learning_rate_decay_epochs 10 \
+--optimizer MOM \
+--embedding_size 512
+
+
+
+"the learning rate for triplet loss is generally always higher than what would be used for a softmax-based classifier."
+
+"they trained their model from scratch using softmax loss first then they fine-tuned it using triplet loss after. "
+
+"try to train using semi-hard triplets not hard ones (default in the code?)"
+
+
+number of steps = max_nrof_epochs * epoch_size
+
+learning rate range from [0.003, 0.4]
