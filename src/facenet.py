@@ -30,8 +30,9 @@ from __future__ import print_function
 import os
 from subprocess import Popen, PIPE
 import tensorflow as tf
+assert tf.__version__ >=2.0
 import numpy as np
-import imageio
+import imageio, skimage
 from sklearn.model_selection import KFold
 from scipy import interpolate
 from scipy import misc
@@ -42,6 +43,7 @@ from tensorflow.python.platform import gfile
 import math
 from six import iteritems
 
+@tf.function
 def triplet_loss(anchor, positive, negative, alpha):
     """Calculate the triplet loss according to the FaceNet paper
     
@@ -53,21 +55,19 @@ def triplet_loss(anchor, positive, negative, alpha):
     Returns:
       the triplet loss according to the FaceNet paper as a float tensor.
     """
-    with tf.variable_scope('triplet_loss'):
-        pos_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
-        neg_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
-        
-        basic_loss = tf.add(tf.subtract(pos_dist,neg_dist), alpha)
-        loss = tf.reduce_mean(tf.maximum(basic_loss, 0.0), 0)
-      
+    pos_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
+    neg_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
+    basic_loss = tf.add(tf.subtract(pos_dist,neg_dist), alpha)
+    loss = tf.reduce_mean(tf.maximum(basic_loss, 0.0), 0)
     return loss
-  
+
+@tf.function
 def center_loss(features, label, alfa, nrof_classes):
     """Center loss based on the paper "A Discriminative Feature Learning Approach for Deep Face Recognition"
        (http://ydwen.github.io/papers/WenECCV16.pdf)
     """
     nrof_features = features.get_shape()[1]
-    centers = tf.get_variable('centers', [nrof_classes, nrof_features], dtype=tf.float32,
+    centers = tf.Variable(initial_value=0, name='centers', shape=[nrof_classes, nrof_features], dtype=tf.float32,
         initializer=tf.constant_initializer(0), trainable=False)
     label = tf.reshape(label, [-1])
     centers_batch = tf.gather(centers, label)
@@ -93,7 +93,7 @@ def shuffle_examples(image_paths, labels):
 
 def random_rotate_image(image):
     angle = np.random.uniform(low=-10.0, high=10.0)
-    return misc.imrotate(image, angle, 'bicubic')
+    return skimage.transform.rotate(image, angle)
   
 # 1: Random rotate 2: Random crop  4: Random flip  8:  Fixed image standardization  16: Flip
 RANDOM_ROTATE = 1
@@ -101,6 +101,7 @@ RANDOM_CROP = 2
 RANDOM_FLIP = 4
 FIXED_STANDARDIZATION = 8
 FLIP = 16
+
 def create_input_pipeline(input_queue, image_size, nrof_preprocess_threads, batch_size_placeholder):
     images_and_labels_list = []
     for _ in range(nrof_preprocess_threads):
@@ -108,7 +109,7 @@ def create_input_pipeline(input_queue, image_size, nrof_preprocess_threads, batc
         images = []
         for filename in tf.unstack(filenames):
             file_contents = tf.read_file(filename)
-            image = tf.image.decode_image(file_contents, 3)
+            image = tf.io.decode_image(file_contents, 3)
             image = tf.cond(get_control_flag(control[0], RANDOM_ROTATE),
                             lambda:tf.py_func(random_rotate_image, [image], tf.uint8), 
                             lambda:tf.identity(image))
