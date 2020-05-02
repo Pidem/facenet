@@ -29,8 +29,9 @@ import skimage
 import skimage.io
 import sys
 import os
+
+sys.path.append('/home/pierre/code/facenet/src/')
 import argparse
-import imageio
 import tensorflow as tf
 import numpy as np
 import facenet
